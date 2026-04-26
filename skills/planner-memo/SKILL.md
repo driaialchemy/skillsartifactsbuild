@@ -1,28 +1,15 @@
 ---
 name: planner-memo
-description: Use this skill when you have a JSON file of forecast records that has already been run through exception detection and now includes fields like `is_exception` and `exception_reasons`. Use this skill when you need to add a plain-English `planner_memo` to each exception item while preserving the original JSON structure for downstream review workflows. It applies to rule-based memo generation from exception-flagged forecasts, not raw forecast creation or exception scoring.
+description: Converts forecast exceptions into structured planning decisions.
 ---
 
 # Overview
 
-Generate short, deterministic planner-review memos for forecast records that already include exception flags and exception reasons. Read a JSON array of forecast objects, add `planner_memo` only to rows where `is_exception` is `true`, and preserve all original fields exactly for downstream UI or reporting steps.
+This skill reads a JSON array of forecast rows and writes the same rows back with deterministic planning decisions. It preserves the original fields, keeps `planner_memo` as a secondary text summary, and derives all decision logic from raw numeric inputs rather than `exception_reasons`.
 
-# When to use
+# Input schema
 
-- Add planner-facing memo text to a JSON file that already contains `is_exception` and `exception_reasons`
-- Turn exception reasons into short investigation guidance for a planner review queue or audit workflow
-- Enrich exception-flagged forecast output before passing it into a UI, artifact, or reporting step
-
-# When NOT to use
-
-- Do not use for forecasts that have not yet been run through exception detection
-- Do not use when the input JSON lacks `is_exception` or `exception_reasons`
-- Do not use for generating forecasts, confidence intervals, or exception flags
-- Do not use for freeform narrative analysis that should go beyond the rule-based memo template
-
-# Input contract
-
-Expect a JSON array of objects. Each object should preserve this shape before memo generation:
+Each row should include these fields:
 
 ```json
 {
@@ -33,110 +20,123 @@ Expect a JSON array of objects. Each object should preserve this shape before me
   "lower_bound": 50,
   "upper_bound": 84,
   "confidence_score": 0.42,
-  "recent_sales": [61, 75, 69, 70, 66, 58, 73, 64, 62, 71, 68, 59, 74, 72, 65, 63, 60, 76, 67, 71, 64, 66, 69, 62, 70, 68, 61, 73],
+  "recent_sales": [61, 75, 69, 70],
   "prior_forecast": 38,
   "is_exception": true,
-  "exception_reasons": [
-    "Low confidence (0.42)",
-    "Forecast changed 77% from prior week"
-  ]
+  "exception_reasons": ["Low confidence (0.42)", "Forecast changed 77% from prior week"]
 }
 ```
 
-Required semantics:
+Required numeric inputs for rule evaluation:
 
-- `is_exception` determines whether a memo is added
-- `exception_reasons` is a list of human-readable reason strings that begin with rule labels such as `Low confidence`, `Forecast changed`, `Recent sales volatility`, or `Wide confidence band`
+- `confidence_score`
+- `point_forecast`
+- `prior_forecast`
+- `lower_bound`
+- `upper_bound`
+- `recent_sales`
 
-# Output contract
+# Output schema
 
-Write the same JSON array back out with all original fields preserved. Add one new field only for rows where `is_exception` is `true`:
+All original fields are preserved. Every row is enriched with these fields:
 
 ```json
 {
-  "planner_memo": "FOODS_1_007 in FOODS needs planner review. The item is flagged for low confidence (0.42) and forecast changed 77% from prior week. Investigate whether recent data is sparse or missing and recent promotions, price changes, or seasonality shifts are affecting demand."
+  "recommendation": "escalate",
+  "recommendation_reason": "Multiple forecast signals require planner escalation.",
+  "decision_confidence": 0.12,
+  "risk_level": "high",
+  "planner_memo": "FOODS_1_007 in FOODS: escalate. Multiple forecast signals require planner escalation."
 }
 ```
 
-Do not add `planner_memo` to non-exception rows.
+Allowed values:
+
+- `recommendation`: `accept` | `override` | `investigate` | `escalate`
+- `risk_level`: `low` | `medium` | `high`
+
+# Decision rules
+
+Internal flags are derived from numeric fields only:
+
+- `low_confidence`: `confidence_score < 0.6`
+- `big_change`: `abs(point_forecast - prior_forecast) / prior_forecast > 0.30`
+- `volatility`: `stdev(recent_sales) / mean(recent_sales) > 0.40`
+- `wide_band`: `(upper_bound - lower_bound) / point_forecast > 0.50`
+
+Priority order:
+
+1. If more than one flag is true: `recommendation = escalate`, `risk_level = high`
+2. Else if `big_change`: `recommendation = override`, `risk_level = high`
+3. Else if `low_confidence`: `recommendation = investigate`, `risk_level = medium`
+4. Else if `volatility`: `recommendation = investigate`, `risk_level = high`
+5. Else if `wide_band`: `recommendation = investigate`, `risk_level = medium`
+6. Else: `recommendation = accept`, `risk_level = low`
+
+Decision confidence starts from `confidence_score`:
+
+- subtract `0.30` when multiple flags are true
+- subtract `0.10` when exactly one flag is true
+- clamp the result to `[0.0, 1.0]`
+
+Non-exception rows still receive structured outputs, but they always resolve to `accept` with `low` risk.
 
 # How to invoke
 
 ```bash
-python generate_memos.py <input_json> <output_json>
+python skills/planner-memo/generate_memos.py <input_json> <output_json>
 ```
 
 Example:
 
 ```bash
-python generate_memos.py data/forecasts_with_exceptions.json data/forecasts_with_memos.json
+python skills/planner-memo/generate_memos.py data/forecasts_with_exceptions.json data/forecasts_with_decisions.json
 ```
 
-# Example
+# Examples
 
-Input:
+Single issue:
 
 ```json
-[
-  {
-    "item_id": "HOUSEHOLD_1_002",
-    "store_id": "CA_1",
-    "category": "HOUSEHOLD",
-    "point_forecast": 32,
-    "lower_bound": 25,
-    "upper_bound": 39,
-    "confidence_score": 0.48,
-    "recent_sales": [31, 32, 37, 32, 35, 31, 28, 29, 30, 38, 30, 35, 29, 35, 33, 32, 32, 30, 33, 31, 28, 28, 33, 37, 32, 32, 33, 36],
-    "prior_forecast": 35,
-    "is_exception": true,
-    "exception_reasons": ["Low confidence (0.48)"]
-  },
-  {
-    "item_id": "HOBBIES_1_001",
-    "store_id": "CA_1",
-    "category": "HOBBIES",
-    "point_forecast": 195,
-    "lower_bound": 172,
-    "upper_bound": 218,
-    "confidence_score": 0.92,
-    "recent_sales": [184, 211, 206, 207, 208, 259, 183, 180, 171, 213, 229, 192, 170, 170, 215, 217, 211, 175, 202, 199, 202, 221, 202, 215, 197, 204, 214, 151],
-    "prior_forecast": 200,
-    "is_exception": false,
-    "exception_reasons": []
-  }
-]
+{
+  "item_id": "HOUSEHOLD_1_005",
+  "store_id": "CA_1",
+  "category": "HOUSEHOLD",
+  "point_forecast": 53,
+  "lower_bound": 44,
+  "upper_bound": 62,
+  "confidence_score": 0.69,
+  "recent_sales": [68, 76, 44, 50, 56, 67, 45, 51],
+  "prior_forecast": 32,
+  "is_exception": true,
+  "exception_reasons": ["Forecast changed 66% from prior week"],
+  "recommendation": "override",
+  "recommendation_reason": "The forecast changed sharply versus the prior plan.",
+  "decision_confidence": 0.59,
+  "risk_level": "high",
+  "planner_memo": "HOUSEHOLD_1_005 in HOUSEHOLD: override. The forecast changed sharply versus the prior plan."
+}
 ```
 
-Output:
+Multi-issue escalation:
 
 ```json
-[
-  {
-    "item_id": "HOUSEHOLD_1_002",
-    "store_id": "CA_1",
-    "category": "HOUSEHOLD",
-    "point_forecast": 32,
-    "lower_bound": 25,
-    "upper_bound": 39,
-    "confidence_score": 0.48,
-    "recent_sales": [31, 32, 37, 32, 35, 31, 28, 29, 30, 38, 30, 35, 29, 35, 33, 32, 32, 30, 33, 31, 28, 28, 33, 37, 32, 32, 33, 36],
-    "prior_forecast": 35,
-    "is_exception": true,
-    "exception_reasons": ["Low confidence (0.48)"],
-    "planner_memo": "HOUSEHOLD_1_002 in HOUSEHOLD needs planner review. The item is flagged for low confidence (0.48). Investigate whether recent data is sparse or missing."
-  },
-  {
-    "item_id": "HOBBIES_1_001",
-    "store_id": "CA_1",
-    "category": "HOBBIES",
-    "point_forecast": 195,
-    "lower_bound": 172,
-    "upper_bound": 218,
-    "confidence_score": 0.92,
-    "recent_sales": [184, 211, 206, 207, 208, 259, 183, 180, 171, 213, 229, 192, 170, 170, 215, 217, 211, 175, 202, 199, 202, 221, 202, 215, 197, 204, 214, 151],
-    "prior_forecast": 200,
-    "is_exception": false,
-    "exception_reasons": []
-  }
-]
+{
+  "item_id": "FOODS_1_007",
+  "store_id": "CA_1",
+  "category": "FOODS",
+  "point_forecast": 67,
+  "lower_bound": 50,
+  "upper_bound": 84,
+  "confidence_score": 0.42,
+  "recent_sales": [61, 75, 69, 70, 66, 58, 73, 64],
+  "prior_forecast": 38,
+  "is_exception": true,
+  "exception_reasons": ["Low confidence (0.42)", "Forecast changed 77% from prior week"],
+  "recommendation": "escalate",
+  "recommendation_reason": "Multiple forecast signals require planner escalation.",
+  "decision_confidence": 0.12,
+  "risk_level": "high",
+  "planner_memo": "FOODS_1_007 in FOODS: escalate. Multiple forecast signals require planner escalation."
+}
 ```
