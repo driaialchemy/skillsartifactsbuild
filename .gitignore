@@ -3,3 +3,11 @@ __pycache__/
 *.pyc
 .DS_Store
 node_modules/
+.claude/
+*.docx
+*.log
+data/runs/
+data/review_sessions/
+data/review_summaries/
+data/traces/
+data/calibration_history/

@@ -4,13 +4,14 @@
 This project is a hands-on learning sandbox for building a demand-planning prototype using synthetic M5-Walmart-style forecast data. The work is meant to help a novice understand how Claude Skills and Claude Artifacts operate by first recreating skill-like behavior in small Python scripts, then packaging one real Skill folder, and finally preparing a React artifact specification that can be pasted into Claude.ai.
 
 ## Tech stack
-Python 3.10+ with the standard library and numpy only. No other dependencies should be introduced unless the user explicitly approves them first.
+Python 3.10+ with the standard library, numpy, and streamlit. No other dependencies should be introduced unless the user explicitly approves them first.
 
 ## Folder layout
 - `data/`: synthetic datasets, sample inputs, and generated intermediate files
 - `scripts/`: standalone Python scripts that mimic skill behavior
 - `skills/`: one real Claude Skill folder with `SKILL.md` and a bundled script later in the project
 - `artifact/`: React artifact specification and related notes for Claude.ai
+- `app/`: Streamlit human-in-the-loop review tool
 - `README.md`: project overview and phased roadmap
 - `.gitignore`: local and generated file exclusions for this project
 - `AGENTS.md`: project memory file for future Codex work

@@ -1,7 +1,11 @@
 import json
+import sys
 from pathlib import Path
 
 import numpy as np
+
+sys.path.insert(0, str(Path(__file__).parent))
+from metadata_foundation import MetadataContext, get_current_run_id
 
 SEED = 42
 COUNT = 50
@@ -45,26 +49,38 @@ def build_forecast(index, category, low_confidence, exception_case, rng):
 
 
 def main():
-    rng = np.random.default_rng(SEED)
-    low_confidence_idx = set(rng.choice(COUNT, size=LOW_CONFIDENCE_COUNT, replace=False).tolist())
-    exception_idx = set(rng.choice(COUNT, size=EXCEPTION_COUNT, replace=False).tolist())
-    counts = {category: 1 for category in CATEGORIES}
-    forecasts = []
-    for index in range(COUNT):
-        category = CATEGORIES[int(rng.integers(0, len(CATEGORIES)))]
-        forecasts.append(
-            build_forecast(
-                counts[category],
-                category,
-                index in low_confidence_idx,
-                index in exception_idx,
-                rng,
+    run_id = get_current_run_id()
+
+    with MetadataContext(run_id, stage_number=1, stage_name="generate_forecasts",
+                         script_path="scripts/generate_forecasts.py") as ctx:
+        ctx.log_threshold("seed", SEED)
+        ctx.log_threshold("item_count", COUNT)
+
+        rng = np.random.default_rng(SEED)
+        low_confidence_idx = set(rng.choice(COUNT, size=LOW_CONFIDENCE_COUNT, replace=False).tolist())
+        exception_idx = set(rng.choice(COUNT, size=EXCEPTION_COUNT, replace=False).tolist())
+        counts = {category: 1 for category in CATEGORIES}
+        forecasts = []
+        for index in range(COUNT):
+            category = CATEGORIES[int(rng.integers(0, len(CATEGORIES)))]
+            forecasts.append(
+                build_forecast(
+                    counts[category],
+                    category,
+                    index in low_confidence_idx,
+                    index in exception_idx,
+                    rng,
+                )
             )
-        )
-        counts[category] += 1
-    output_path = Path("data/forecasts.json")
-    output_path.write_text(json.dumps(forecasts, indent=2), encoding="utf-8")
-    print(f"Wrote {len(forecasts)} forecasts to {output_path}")
+            counts[category] += 1
+        output_path = Path("data/forecasts.json")
+        output_path.write_text(json.dumps(forecasts, indent=2), encoding="utf-8")
+
+        ctx.log_output(str(output_path), row_count=len(forecasts), fields_added=["item_id", "store_id", "category", "point_forecast", "lower_bound", "upper_bound", "confidence_score", "recent_sales", "prior_forecast"])
+        ctx.log_metric("forecasts_generated", len(forecasts))
+        ctx.log_metric("low_confidence_count", LOW_CONFIDENCE_COUNT)
+
+        print(f"Wrote {len(forecasts)} forecasts to {output_path}")
 
 
 if __name__ == "__main__":

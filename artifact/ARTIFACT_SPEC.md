@@ -1,10 +1,14 @@
 # Planner Review Console Artifact Spec
 
-Build a single-file React artifact for Claude.ai that acts as a demand-planning review console for forecast exceptions. The artifact should load from inline sample data only, show a planner's queue of exception items on the left, show the selected item's detail and decision controls on the right, and provide a separate audit log view. The artifact should feel like a compact internal operations tool: fast to scan, easy to act on, and persistent across refreshes through `window.storage`.
+Build a single-file React artifact for Claude.ai that acts as a demand-planning review console for forecast exceptions. The artifact should load from pasted JSON data (with inline sample fallback), show a planner's queue of exception items on the left, show the selected item's detail and decision controls on the right, and provide a separate audit log view. The artifact should feel like a compact internal operations tool: fast to scan, easy to act on, and persistent across refreshes through `window.storage`.
+
+## Data loader
+
+A textarea at the top of the console allows pasting forecasts_ranked.json content. When valid JSON is pasted, the artifact loads and uses that data. If the textarea is empty, the artifact falls back to the inline sample dataset so it still renders standalone.
 
 ## Data shape
 
-Use an inline array named something like `sampleForecasts` as the artifact's initial dataset. Each object has this structure:
+Use an inline array named something like `sampleForecasts` as the artifact's fallback dataset. Each object has this structure:
 
 ```json
 {
@@ -158,11 +162,24 @@ Buttons and actions:
   Clear the text box after save.
   Remove the item from the queue immediately.
 
+- `Investigate`:
+  Follows the same validation rules as `Override` (requires at least 10 trimmed characters).
+  Saves a decision for the selected item with action `Investigate` and the typed reason.
+  Write a matching audit entry with action `investigate`.
+  Clear the text box after save.
+  Remove the item from the queue immediately.
+
 - `Escalate`:
   Saves a decision for the selected item with action `Escalate`.
   A typed reason is optional.
   If text is present in the reason box, include it in the saved decision and audit entry.
   Remove the item from the queue immediately.
+
+- `Export`:
+  A button in the top bar that exports all saved decisions.
+  Reads all decisions from window.storage and produces a downloadable JSON file.
+  Output shape matches simulate_planner_feedback.py: `planner_action` (lowercase action), `decision_match` (boolean comparing planner_action to the row's `recommendation` field), `confidence_gap` (abs(decision_confidence - int(decision_match))), `error_type` (none | underreaction | overreaction | judgment_difference), plus `item_id` and `timestamp`.
+  Uses the same formulas as simulate_planner_feedback.py for decision_match, confidence_gap, and error_type.
 
 Additional behavior:
 

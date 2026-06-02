@@ -124,6 +124,7 @@ const sampleForecasts = [
 const ACTION_META = {
   Accept: { tone: "emerald", icon: CircleCheck, verb: "Accepted" },
   Override: { tone: "amber", icon: CircleAlert, verb: "Overridden" },
+  Investigate: { tone: "stone", icon: AlertTriangle, verb: "Investigated" },
   Escalate: { tone: "rose", icon: ArrowUp, verb: "Escalated" },
 };
 
@@ -186,7 +187,7 @@ function parseOverrideNumber(reason) {
 
 function computeThemes(log) {
   const reasons = log
-    .filter((entry) => entry.action === "Override" || entry.action === "Escalate")
+    .filter((entry) => entry.action === "Override" || entry.action === "Escalate" || entry.action === "Investigate")
     .map((entry) => entry.reason.trim())
     .filter(Boolean);
   if (reasons.length < 3) return { reasons, themes: [] };
@@ -711,7 +712,7 @@ function DetailPanel({
             Decision
           </h3>
           <span className="text-[11px] text-stone-500">
-            Override requires reason ≥ 10 chars · Escalate optional · Accept ignores
+            Override/Investigate require reason ≥ 10 chars · Escalate optional · Accept ignores
           </span>
         </div>
 
@@ -719,7 +720,7 @@ function DetailPanel({
           value={reason}
           onChange={(e) => setReason(e.target.value)}
           rows={3}
-          placeholder="Reason for override or escalation (optional for Escalate, required ≥10 chars for Override)…"
+          placeholder="Reason for override, investigate, or escalation (optional for Escalate, required ≥10 chars for Override/Investigate)…"
           className="w-full bg-white border border-stone-300 focus:border-stone-900 focus:ring-0 outline-none px-4 py-3 text-sm leading-relaxed resize-none placeholder:text-stone-400"
         />
 
@@ -739,20 +740,20 @@ function DetailPanel({
             /10 chars
             {reason.trim().length > 0 && reason.trim().length < 10 && (
               <span className="text-amber-700 ml-2">
-                · {10 - reason.trim().length} more for override
+                · {10 - reason.trim().length} more for override/investigate
               </span>
             )}
           </div>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-2">
+        <div className="grid grid-cols-1 sm:grid-cols-4 gap-2">
           <button
             onClick={() => commit("Accept")}
             disabled={savingAction !== null}
             className={`px-4 py-2.5 text-sm font-medium border transition flex items-center justify-center gap-2 ${TONE.emerald.btn} disabled:opacity-50 disabled:cursor-not-allowed`}
           >
             <CircleCheck className="w-4 h-4" />
-            Accept Forecast
+            Accept
           </button>
           <button
             onClick={() => commit("Override")}
@@ -766,6 +767,19 @@ function DetailPanel({
           >
             <CircleAlert className="w-4 h-4" />
             Override
+          </button>
+          <button
+            onClick={() => commit("Investigate")}
+            disabled={!investigateOk || savingAction !== null}
+            className={`px-4 py-2.5 text-sm font-medium border transition flex items-center justify-center gap-2 ${TONE.stone.btn} disabled:opacity-40 disabled:cursor-not-allowed`}
+            title={
+              !investigateOk
+                ? "Enter at least 10 characters in the reason field"
+                : "Mark for investigation with the reason above"
+            }
+          >
+            <AlertTriangle className="w-4 h-4" />
+            Investigate
           </button>
           <button
             onClick={() => commit("Escalate")}
@@ -1060,6 +1074,8 @@ export default function PlannerConsole() {
   const [reason, setReason] = useState("");
   const [hydrated, setHydrated] = useState(false);
   const [savingAction, setSavingAction] = useState(null);
+  const [pastedData, setPastedData] = useState("");
+  const [loadedForecasts, setLoadedForecasts] = useState(sampleForecasts);
 
   // Hydrate from window.storage on mount
   useEffect(() => {
@@ -1078,7 +1094,7 @@ export default function PlannerConsole() {
 
       // Per-item decisions
       const decs = {};
-      for (const item of sampleForecasts) {
+      for (const item of loadedForecasts) {
         try {
           const d = await window.storage.get(`decisions:${item.item_id}`);
           if (d?.value) {
@@ -1101,9 +1117,25 @@ export default function PlannerConsole() {
     return () => {
       cancelled = true;
     };
-  }, []);
+  }, [loadedForecasts]);
 
-  const exceptionItems = useMemo(() => sampleForecasts.filter((item) => item.is_exception), []);
+  // Load forecasts from pasted data or fall back to sample
+  useEffect(() => {
+    if (pastedData.trim()) {
+      try {
+        const parsed = JSON.parse(pastedData);
+        if (Array.isArray(parsed)) {
+          setLoadedForecasts(parsed);
+        }
+      } catch (e) {
+        // Invalid JSON, keep current loaded forecasts
+      }
+    } else {
+      setLoadedForecasts(sampleForecasts);
+    }
+  }, [pastedData]);
+
+  const exceptionItems = useMemo(() => loadedForecasts.filter((item) => item.is_exception), [loadedForecasts]);
 
   // Derived: items still in the queue
   const queue = useMemo(
@@ -1127,12 +1159,14 @@ export default function PlannerConsole() {
     }
   }, [queue, selectedId, hydrated]);
 
-  const selected = sampleForecasts.find((i) => i.item_id === selectedId);
+  const selected = loadedForecasts.find((i) => i.item_id === selectedId);
   const overrideOk = reason.trim().length >= 10;
+  const investigateOk = reason.trim().length >= 10;
 
   async function commit(action) {
     if (!selectedId) return;
     if (action === "Override" && !overrideOk) return;
+    if (action === "Investigate" && !investigateOk) return;
     setSavingAction(action);
 
     const ts = new Date().toISOString();
@@ -1167,7 +1201,7 @@ export default function PlannerConsole() {
 
   async function handleReset() {
     if (typeof window !== "undefined" && window.storage) {
-      for (const item of sampleForecasts) {
+      for (const item of loadedForecasts) {
         try {
           await window.storage.delete(`decisions:${item.item_id}`);
         } catch (e) {
@@ -1187,6 +1221,43 @@ export default function PlannerConsole() {
     setTab("queue");
   }
 
+  function handleExport() {
+    const enriched = [];
+    for (const item of loadedForecasts) {
+      const decision = decisions[item.item_id];
+      if (!decision) continue;
+      const planner_action = decision.action.toLowerCase();
+      const recommendation = item.recommendation || "accept";
+      const decision_match = planner_action === recommendation;
+      const confidence_gap = Math.abs(parseFloat(item.decision_confidence || 0) - (decision_match ? 1 : 0));
+      let error_type = "none";
+      if (!decision_match) {
+        if (recommendation === "accept" && planner_action !== "accept") {
+          error_type = "underreaction";
+        } else if (recommendation !== "accept" && planner_action === "accept") {
+          error_type = "overreaction";
+        } else {
+          error_type = "judgment_difference";
+        }
+      }
+      enriched.push({
+        item_id: item.item_id,
+        planner_action,
+        decision_match,
+        confidence_gap,
+        error_type,
+        timestamp: decision.timestamp,
+      });
+    }
+    const blob = new Blob([JSON.stringify(enriched, null, 2)], { type: "application/json" });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url;
+    a.download = "planner_decisions_export.json";
+    a.click();
+    URL.revokeObjectURL(url);
+  }
+
   const totalItems = exceptionItems.length;
   const decidedCount = exceptionItems.filter((item) => decisions[item.item_id]).length;
   const pendingCount = queue.length;
@@ -1204,6 +1275,20 @@ export default function PlannerConsole() {
         .pmono { font-family: 'IBM Plex Mono', ui-monospace, monospace; font-feature-settings: "tnum"; }
         textarea:focus { box-shadow: 0 0 0 3px rgba(12, 10, 9, 0.06); }
       `}</style>
+
+      {/* Data loader */}
+      <div className="bg-stone-100 border-b border-stone-200 px-6 py-3">
+        <label className="block text-[10px] uppercase tracking-[0.15em] text-stone-500 pmono mb-1">
+          Paste forecasts_ranked.json
+        </label>
+        <textarea
+          value={pastedData}
+          onChange={(e) => setPastedData(e.target.value)}
+          rows={3}
+          placeholder="Paste JSON array here, or leave empty to use sample data..."
+          className="w-full bg-white border border-stone-300 focus:border-stone-900 focus:ring-0 outline-none px-3 py-2 text-xs leading-relaxed resize-none placeholder:text-stone-400 pmono"
+        />
+      </div>
 
       {/* Top bar */}
       <header className="bg-white border-b border-stone-200 sticky top-0 z-20">
@@ -1283,6 +1368,13 @@ export default function PlannerConsole() {
               <span className="w-1.5 h-1.5 rounded-full bg-amber-500" />
               {pendingCount} pending
             </span>
+            <span className="w-px h-4 bg-stone-200" />
+            <button
+              onClick={handleExport}
+              className="text-stone-900 hover:text-amber-700 uppercase tracking-wider transition"
+            >
+              Export
+            </button>
           </div>
         </div>
       </header>

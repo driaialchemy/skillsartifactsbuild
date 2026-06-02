@@ -1,0 +1,43 @@
+{
+  "schema_version": "1.0",
+  "policy_version": "v1.0.0",
+  "created_at": "2026-05-09T12:00:00Z",
+  "created_by": "system",
+  "change_summary": "Initial baseline policy extracted from existing pipeline thresholds",
+
+  "exception_detection": {
+    "low_confidence_threshold": 0.55,
+    "change_ratio_threshold": 0.25,
+    "volatility_threshold": 0.25,
+    "band_ratio_threshold": 0.35,
+    "zscore_threshold": 0.75,
+    "high_confidence_threshold": 0.85
+  },
+
+  "decision_generation": {
+    "low_confidence_threshold": 0.6,
+    "big_change_threshold": 0.30,
+    "volatility_threshold": 0.40,
+    "wide_band_threshold": 0.50,
+    "multi_flag_penalty": 0.3,
+    "single_flag_penalty": 0.1
+  },
+
+  "scoring_weights": {
+    "change": 34.0,
+    "volatility": 24.0,
+    "band": 16.0,
+    "low_confidence": 12.0,
+    "diminishing_returns": [1.0, 0.6, 0.3, 0.2]
+  },
+
+  "tier_boundaries": {
+    "critical": 0.10,
+    "high": 0.30,
+    "medium": 0.60
+  },
+
+  "calibration": {
+    "calibration_gap_threshold": 0.4
+  }
+}
