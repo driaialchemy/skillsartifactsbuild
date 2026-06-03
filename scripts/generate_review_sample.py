@@ -11,6 +11,8 @@ import random
 from pathlib import Path
 from typing import List, Dict
 
+from add_run_metadata import load_with_fallback
+
 
 PROJECT_ROOT = Path(__file__).parent.parent
 FORECASTS_PATH = PROJECT_ROOT / "data" / "forecasts_ranked.json"
@@ -63,7 +65,8 @@ SAMPLE_CONFIG = {
 
 def load_forecasts() -> List[Dict]:
     """Load forecast data."""
-    return json.loads(FORECASTS_PATH.read_text(encoding="utf-8"))
+    forecasts, _metadata = load_with_fallback(FORECASTS_PATH)
+    return forecasts
 
 
 def assign_to_stratum(item: Dict, strata_config: Dict) -> str:

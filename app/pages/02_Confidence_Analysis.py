@@ -6,6 +6,10 @@ import streamlit as st
 import pandas as pd
 from pathlib import Path
 from collections import defaultdict
+import sys
+
+sys.path.insert(0, str(Path(__file__).parent.parent / "lib"))
+from data_loading import load_json_payload
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -30,7 +34,7 @@ def load_forecasts_with_memos():
     path = DATA_DIR / "forecasts_with_memos.json"
     if not path.exists():
         return None
-    return json.loads(path.read_text(encoding="utf-8"))
+    return load_json_payload(path, data_key="forecasts")
 
 @st.cache_data
 def load_calibration_report(run_id=None):
@@ -52,7 +56,7 @@ def load_forecasts_with_feedback():
     path = DATA_DIR / "forecasts_with_feedback.json"
     if not path.exists():
         return None
-    return json.loads(path.read_text(encoding="utf-8"))
+    return load_json_payload(path, data_key="forecasts")
 
 # ---------------------------------------------------------------------------
 # Analysis functions

@@ -2,6 +2,10 @@ import json
 import streamlit as st
 from datetime import datetime
 from pathlib import Path
+import sys
+
+sys.path.insert(0, str(Path(__file__).parent / "lib"))
+from data_loading import load_json_payload
 
 # ---------------------------------------------------------------------------
 # Paths
@@ -16,7 +20,7 @@ EXPORT_PATH = PROJECT_ROOT / "data" / "planner_feedback_export.json"
 # ---------------------------------------------------------------------------
 @st.cache_data
 def load_forecasts():
-    return json.loads(FORECASTS_PATH.read_text(encoding="utf-8"))
+    return load_json_payload(FORECASTS_PATH, data_key="forecasts")
 
 def load_decisions():
     if not DECISIONS_PATH.exists():

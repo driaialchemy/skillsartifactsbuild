@@ -2,6 +2,8 @@ import json
 import math
 from pathlib import Path
 
+from add_run_metadata import load_with_fallback
+
 INPUT = Path("data/forecasts_ranked.json")
 OUTPUT = Path("data/top_tier_clusters.json")
 GAP_THRESHOLD = 2.0
@@ -22,7 +24,7 @@ def cluster_rows(rows):
 
 
 def main():
-    rows = json.loads(INPUT.read_text(encoding="utf-8"))
+    rows, _metadata = load_with_fallback(INPUT)
     top_n = max(1, math.ceil(len(rows) * 0.10))
     top_rows = rows[:top_n]
     clusters = cluster_rows(top_rows) if top_rows else []

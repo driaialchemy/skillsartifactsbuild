@@ -3,6 +3,8 @@ import json
 import sys
 from pathlib import Path
 
+from add_run_metadata import load_with_fallback
+
 
 def verify_trace_index():
     """Verify trace index exists and has correct structure."""
@@ -153,7 +155,7 @@ def verify_data_integrity():
             continue
 
         try:
-            data = json.loads(path.read_text())
+            data, _metadata = load_with_fallback(path)
             if not isinstance(data, list):
                 print(f"  ERROR: {filepath} is not a JSON array")
                 all_valid = False

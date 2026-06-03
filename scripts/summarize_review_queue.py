@@ -2,13 +2,16 @@ import json
 from collections import Counter
 from pathlib import Path
 
+from add_run_metadata import load_with_fallback
+
 TOP_ITEMS_TO_SHOW = 5
 MAX_REASON_WIDTH = 72
 
 
 def load_rows():
     input_path = Path("data/forecasts_ranked.json")
-    return json.loads(input_path.read_text(encoding="utf-8"))
+    rows, _metadata = load_with_fallback(input_path)
+    return rows
 
 
 def exception_rows(rows):

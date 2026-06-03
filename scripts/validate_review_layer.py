@@ -28,6 +28,7 @@ from summary_generator import (
     generate_session_summary, generate_override_audit,
     generate_disagreement_analysis
 )
+from data_loading import load_json_payload
 
 
 PROJECT_ROOT = Path(__file__).parent.parent
@@ -132,7 +133,7 @@ def test_queue_filtering():
             print("[WARN] No forecasts file found, skipping queue test")
             return True
 
-        forecasts = json.loads(FORECASTS_PATH.read_text(encoding="utf-8"))
+        forecasts = load_json_payload(FORECASTS_PATH, data_key="forecasts")
         print(f"[OK] Loaded {len(forecasts)} forecasts")
 
         # Test each queue type

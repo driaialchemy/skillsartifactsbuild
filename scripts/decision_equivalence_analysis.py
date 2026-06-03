@@ -2,6 +2,8 @@ import json
 import math
 from pathlib import Path
 
+from add_run_metadata import load_with_fallback
+
 INPUT = Path("data/forecasts_ranked.json")
 OUTPUT = Path("data/decision_equivalence_summary.json")
 
@@ -14,7 +16,7 @@ def variance(values):
 
 
 def main():
-    rows = json.loads(INPUT.read_text(encoding="utf-8"))
+    rows, _metadata = load_with_fallback(INPUT)
     groups = {}
     for row in rows:
         key = (row["recommendation"], row["priority_tier"])

@@ -1,6 +1,8 @@
 import json
 from pathlib import Path
 
+from add_run_metadata import load_with_fallback
+
 BASELINE = Path("data/forecasts_stress_ranked_v3.json")
 CASES = {
     "mild": Path("data/forecasts_noise_mild_ranked.json"),
@@ -14,7 +16,8 @@ TOP_K_PCTS = (0.05, 0.10, 0.20)
 
 
 def load_rows(path):
-    return json.loads(path.read_text(encoding="utf-8"))
+    rows, _metadata = load_with_fallback(path)
+    return rows
 
 
 def rank_map(rows):

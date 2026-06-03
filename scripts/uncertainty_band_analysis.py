@@ -2,6 +2,8 @@ import json
 import math
 from pathlib import Path
 
+from add_run_metadata import load_with_fallback
+
 INPUT = Path("data/forecasts_with_feedback.json")
 OUTPUT = Path("data/uncertainty_band_summary.json")
 
@@ -11,7 +13,7 @@ def avg(values):
 
 
 def main():
-    rows = json.loads(INPUT.read_text(encoding="utf-8"))
+    rows, _metadata = load_with_fallback(INPUT)
     scores = [float(row["priority_score"]) for row in rows]
     max_gap = max((abs(a - b) for a, b in zip(scores, scores[1:])), default=1.0) or 1.0
     top_n = max(1, math.ceil(len(rows) * 0.10))

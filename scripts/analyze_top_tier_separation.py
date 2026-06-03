@@ -2,6 +2,8 @@ import json
 import math
 from pathlib import Path
 
+from add_run_metadata import load_with_fallback
+
 BASELINE = Path("data/forecasts_stress_ranked_v3.json")
 PERTURBATIONS = {
     "mild": Path("data/forecasts_noise_mild_ranked.json"),
@@ -14,7 +16,8 @@ THIN_MARGIN = 3
 
 
 def load(path):
-    return json.loads(path.read_text(encoding="utf-8"))
+    data, _metadata = load_with_fallback(path)
+    return data
 
 
 def std_dev(values):

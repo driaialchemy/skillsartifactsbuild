@@ -3,6 +3,8 @@ import math
 import sys
 from pathlib import Path
 
+from add_run_metadata import load_with_fallback
+
 BUFFER_PCT = 0.025
 SCORE_DELTA_THRESHOLD = 4
 BOUNDARIES = (
@@ -80,7 +82,7 @@ def main():
     output_path = (
         Path(sys.argv[2]) if len(sys.argv) > 2 else Path("data/forecasts_smoothed_ranked.json")
     )
-    rows = json.loads(input_path.read_text(encoding="utf-8"))
+    rows, _metadata = load_with_fallback(input_path)
     smoothed, holds, overrides = smooth_rows(rows)
     output_path.write_text(json.dumps(smoothed, indent=2), encoding="utf-8")
     print(f"Wrote {len(smoothed)} rows to {output_path}")

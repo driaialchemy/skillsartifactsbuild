@@ -5,11 +5,31 @@ A beginner-friendly learning project for building a demand-planning prototype on
 ## How to run the review app
 
 ```bash
-pip install streamlit
-streamlit run app\planner_review.py
+python -m pip install -r requirements.txt
+python -m streamlit run app/Home.py
 ```
 
 Open the URL Streamlit prints (typically http://localhost:8501).
+
+The standalone planner review app is still available with:
+
+```bash
+python -m streamlit run app/planner_review.py
+```
+
+## How to run the pipeline
+
+```bash
+python scripts/run_pipeline.py --type baseline
+```
+
+For a quick local verification pass:
+
+```bash
+python -m compileall -q app scripts config skills
+python scripts/validate_dashboard.py
+python scripts/validate_review_layer.py
+```
 
 ## Phases
 

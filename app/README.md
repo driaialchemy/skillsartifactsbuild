@@ -6,7 +6,8 @@ Interactive local dashboard for inspecting pipeline execution traces, metadata, 
 
 ```bash
 # From project root
-streamlit run app/Home.py
+python -m pip install -r requirements.txt
+python -m streamlit run app/Home.py
 ```
 
 The dashboard will open in your browser at `http://localhost:8501`.
