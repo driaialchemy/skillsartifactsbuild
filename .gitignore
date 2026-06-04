@@ -12,6 +12,10 @@ data/review_sessions/
 data/review_summaries/
 data/traces/
 data/calibration_history/
+data/forecasts.json
+data/forecasts_ranked.json
+data/forecasts_with_exceptions.json
+data/forecasts_with_memos.json
 data/calibration_report.json
 data/calibration_summary.txt
 data/decision_equivalence_summary.json
@@ -26,3 +30,14 @@ data/ranking_stability_v2_summary.json
 data/top_tier_clusters.json
 data/top_tier_separation_analysis.json
 data/uncertainty_band_summary.json
+
+# Local project notes and generated review docs
+PROJECT_STATE_SUMMARY.md
+DELIVERABLES.md
+LAUNCH_DASHBOARD.md
+REVIEW_LAYER_*.md
+cost_summary*.md
+costsummary*.md
+current state of project*.md
+eval*.md
+may*currentstate.md
