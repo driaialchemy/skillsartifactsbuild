@@ -2,6 +2,26 @@
 
 A beginner-friendly learning project for building a demand-planning prototype on top of synthetic M5-Walmart-style forecast data, with a focus on understanding how Claude Skills and Claude Artifacts can be mirrored through simple Python scripts, one real skill folder, and a React artifact specification.
 
+## For A Novice Reader
+
+This project is a learning lab for demand planning. It uses made-up retail
+forecast data to show how an AI-assisted planning tool might flag exceptions,
+rank important items, explain decisions, and help a planner review what needs
+attention.
+
+It is not a production forecasting system. It is meant to teach the workflow and
+show the pieces of a planner-assistance dashboard.
+
+## For A Technical Reader
+
+The repo combines deterministic Python pipeline scripts, synthetic
+M5/Walmart-style data, Streamlit review screens, a real Claude Skill folder, and
+artifact specifications. The pipeline includes exception detection, memo
+generation, calibrated scoring/ranking, threshold smoothing, stability analysis,
+decision-equivalence analysis, top-tier clustering, and uncertainty-band
+diagnostics. Generated data artifacts are local outputs and are intentionally
+kept separate from source-controlled code where appropriate.
+
 ## How to run the review app
 
 ```bash
